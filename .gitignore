@@ -1,0 +1,15 @@
+# env
+.env
+.env.*
+
+# python
+__pycache__/
+*.pyc
+venv/
+
+# editors
+.vscode/
+.idea/
+
+# docker
+*.log
