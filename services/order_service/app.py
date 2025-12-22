@@ -1,17 +1,27 @@
-import asyncio
-import json
 import os
+import json
 import uuid
+from decimal import Decimal, ROUND_DOWN
+from datetime import datetime, timezone
+
+import asyncio
 from aiohttp import web
 import redis.asyncio as redis
-from dotenv import load_dotenv
 
+from database.pg import init_pg
+from database.orders import insert_order
+
+from domain.order_status import OrderStatus
+
+from dotenv import load_dotenv
 load_dotenv()
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+DATABASE_URI = os.getenv("DATABASE_URI", "postgresql://exchange:exchange@localhost:5432/exchange")
 
 SERVICE_NAME = "order_service"
+ORDER_TTL_SECONDS = 60
 
 
 # =====================
@@ -23,6 +33,10 @@ async def init_redis(app: web.Application):
         port=REDIS_PORT,
         decode_responses=True,
     )
+
+
+async def init_database(app: web.Application):
+    await init_pg(DATABASE_URI)
 
 
 async def close_redis(app: web.Application):
@@ -56,10 +70,7 @@ async def create_order(request: web.Request):
     idem_key = data.get("idempotency_key")
 
     if not quote_id:
-        return web.json_response(
-            {"error": "QUOTE_ID_REQUIRED"},
-            status=400,
-        )
+        return web.json_response({"error": "QUOTE_ID_REQUIRED"}, status=400)
 
     r = request.app["redis"]
 
@@ -75,40 +86,64 @@ async def create_order(request: web.Request):
     # Load quote
     quote_key = f"quote:{quote_id}"
     quote_raw = await r.get(quote_key)
-
     if not quote_raw:
-        return web.json_response(
-            {"error": "QUOTE_EXPIRED_OR_NOT_FOUND"},
-            status=409,
-        )
+        return web.json_response({"error": "QUOTE_EXPIRED_OR_NOT_FOUND"}, status=409)
 
     quote = json.loads(quote_raw)
     print(f'create_order() --> quote -->\n{quote}')
 
-    # Create order
-    order_id = f"o_{uuid.uuid4().hex[:12]}"
+    # Создаём UUID и timestamp
+    order_uuid = uuid.uuid4()                # UUID для БД
+    order_id = f"o_{order_uuid.hex[:12]}"    # короткий для API
+    ts = datetime.now(timezone.utc)          # datetime для БД и Redis
+
+    # Преобразуем числа в Decimal с нужной точностью для БД
+    amount_in = Decimal(str(quote["amount_in"])).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    amount_out = Decimal(str(quote["amount_out"])).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+    rate = Decimal(str(quote["rate"])).quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
+    commission = Decimal(str(quote["commission"])).quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
+
+    # Базовая структура заказа для БД
     order = {
+        "id": order_uuid,
         "order_id": order_id,
-        "status": "CREATED",
+        "status": OrderStatus.CREATED,
         "quote_id": quote_id,
         "pair": f"{quote['from']}_{quote['to']}",
-        "amount_in": quote["amount_in"],
-        "amount_out": quote["amount_out"],
+        "amount_in": amount_in,
+        "amount_out": amount_out,
+        "rate": rate,
+        "commission": commission,
         "client_id": client_id,
+        "session_id": quote["session_id"],
+        "created_at": ts,
+        "updated_at": ts,
     }
 
-    async with r.pipeline(transaction=True) as pipe:
-        pipe.set(f"order:{order_id}", json.dumps(order))
-        pipe.delete(quote_key)
+    # Для Redis/API сериализуем datetime и UUID, а Decimal -> float
+    redis_payload = {
+        **order,
+        "id": str(order["id"]),
+        "created_at": ts.isoformat(),
+        "updated_at": ts.isoformat(),
+        "amount_in": float(amount_in),
+        "amount_out": float(amount_out),
+        "rate": float(rate),
+        "commission": float(commission),
+    }
 
+    # Сохраняем в Redis
+    async with r.pipeline(transaction=True) as pipe:
+        pipe.set(f"order:{order_id}", json.dumps(redis_payload), ex=ORDER_TTL_SECONDS)
+        pipe.delete(quote_key)
         if idem_key:
             pipe.set(f"idem:{idem_key}", order_id, ex=3600)
-
         await pipe.execute()
 
-    print(order)
+    # Сохраняем в БД
+    await insert_order(order)
 
-    return web.json_response(order, status=201)
+    return web.json_response(redis_payload, status=201)
 
 
 # =====================
@@ -121,6 +156,7 @@ async def create_app():
     app.router.add_post("/orders", create_order)
 
     app.on_startup.append(init_redis)
+    app.on_startup.append(init_database)
     app.on_cleanup.append(close_redis)
 
     return app
