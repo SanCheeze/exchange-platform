@@ -1,5 +1,3 @@
-# order_service/database/pg.py
-
 import asyncpg
 from pathlib import Path
 
