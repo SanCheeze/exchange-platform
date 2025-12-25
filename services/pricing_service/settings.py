@@ -8,5 +8,8 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL", 30))  # seconds
 
-BASE_CURRENCIES = ["USD", "TBH", "RUB"]
-TARGET_CURRENCIES = ["USD", "TBH", "RUB"]
+# --- Список валют и символов ---
+CRYPTO_SYMBOLS = ["BTCUSDT", "ETHUSDT", "USDTUSD"]  # криптовалютные пары
+FIAT_BASE = "USD"                                    # базовая валюта для фиата
+FIAT_QUOTES = ["EUR", "GBP", "JPY"]                  # фиатные валюты для конвертации
+

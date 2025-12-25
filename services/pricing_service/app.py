@@ -5,7 +5,7 @@ from config import (
     REDIS_HOST,
     REDIS_PORT,
     UPDATE_INTERVAL,
-    BASE_CURRENCIES,
+    BASE_CURRENCY,
     TARGET_CURRENCIES,
 )
 from providers.fx import fetch_fx_rates
