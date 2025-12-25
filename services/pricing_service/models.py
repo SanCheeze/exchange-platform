@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 
 @dataclass
@@ -9,4 +9,11 @@ class Rate:
     quote: str
     rate: Decimal
     source: str
-    updated_at: datetime
+    updated_at: str
+
+
+@dataclass
+class ProviderResult:
+    ok: bool
+    rates: list[Rate]
+    error: Optional[str] = None

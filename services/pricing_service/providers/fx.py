@@ -1,33 +1,25 @@
 import aiohttp
 from decimal import Decimal
-
-from models.rate import Rate
+from models import Rate, ProviderResult
 from utils.time import utc_now_iso
 
 
-FX_URL = "https://api.exchangerate.host/latest"
-
-
-async def fetch_fx_rates(base: str, symbols: list[str]) -> list[Rate]:
-    params = {
-        "base": base,
-        "symbols": ",".join(symbols),
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(FX_URL, params=params) as resp:
-            data = await resp.json()
-
-    rates = []
-    for quote, value in data["rates"].items():
-        rates.append(
-            Rate(
-                base=base,
-                quote=quote,
-                rate=Decimal(str(value)),
-                source="fx",
-                updated_at=utc_now_iso(),
+async def fetch(base: str, quotes: list[str]) -> ProviderResult:
+    try:
+        # пример — заглушка
+        rates = []
+        for q in quotes:
+            rates.append(
+                Rate(
+                    base=base,
+                    quote=q,
+                    rate=Decimal("1.0"),
+                    source="fx",
+                    updated_at=utc_now_iso(),
+                )
             )
-        )
 
-    return rates
+        return ProviderResult(ok=True, rates=rates)
+
+    except Exception as e:
+        return ProviderResult(ok=False, rates=[], error=str(e))

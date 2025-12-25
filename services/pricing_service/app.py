@@ -1,47 +1,23 @@
 import asyncio
+from aiohttp import web
 import redis.asyncio as redis
-
-from config import (
-    REDIS_HOST,
-    REDIS_PORT,
-    UPDATE_INTERVAL,
-    BASE_CURRENCY,
-    TARGET_CURRENCIES,
-)
-from providers.fx import fetch_fx_rates
-from redis_repo.rates import save_rate
+from fetch import fetch_loop
 
 
-async def update_rates(redis_client: redis.Redis):
-    for base in BASE_CURRENCIES:
-        symbols = [c for c in TARGET_CURRENCIES if c != base]
-        if not symbols:
-            continue
+async def init_app():
+    app = web.Application()
 
-        rates = await fetch_fx_rates(base, symbols)
-
-        for rate in rates:
-            await save_rate(redis_client, rate)
-            print(f"[FX] {rate.base}->{rate.quote} = {rate.rate}")
-
-
-async def main():
     redis_client = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
+        host="localhost",
+        port=6379,
         decode_responses=True,
     )
 
-    print("Pricing service started")
+    app["redis"] = redis_client
+    app.on_startup.append(lambda app: asyncio.create_task(fetch_loop(redis_client)))
 
-    while True:
-        try:
-            await update_rates(redis_client)
-        except Exception as e:
-            print("Error updating rates:", e)
-
-        await asyncio.sleep(UPDATE_INTERVAL)
+    return app
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    web.run_app(init_app(), port=8090)
