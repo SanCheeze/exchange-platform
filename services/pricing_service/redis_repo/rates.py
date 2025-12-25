@@ -13,7 +13,7 @@ async def save_rate(redis: Redis, rate: Rate):
     payload = {
         "rate": str(rate.rate),
         "source": rate.source,
-        "updated_at": rate.updated_at.isoformat(),
+        "updated_at": rate.updated_at,
     }
 
     await redis.set(key, json.dumps(payload))

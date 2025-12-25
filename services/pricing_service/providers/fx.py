@@ -1,7 +1,8 @@
 import aiohttp
 from decimal import Decimal
-from datetime import datetime
+
 from models.rate import Rate
+from utils.time import utc_now_iso
 
 
 FX_URL = "https://api.exchangerate.host/latest"
@@ -25,7 +26,7 @@ async def fetch_fx_rates(base: str, symbols: list[str]) -> list[Rate]:
                 quote=quote,
                 rate=Decimal(str(value)),
                 source="fx",
-                updated_at=datetime.utcnow(),
+                updated_at=utc_now_iso(),
             )
         )
 
