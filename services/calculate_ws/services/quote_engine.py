@@ -1,7 +1,10 @@
 from decimal import Decimal
+
 from redis_repo.rates import get_rate
-from utils.ids import generate_quote_id
+from redis_repo.quotes import save_quote
+
 from logic.quote import build_quote
+from utils.ids import generate_quote_id
 
 
 class QuoteEngine:
@@ -25,24 +28,23 @@ class QuoteEngine:
             rate_dec = Decimal(str(r_inv))
             amount_out = (amount_dec / rate_dec).quantize(Decimal("0.0001"))
 
-        rate_val = float(rate_dec)
-
         quote_id = generate_quote_id()
         quote = build_quote(
             quote_id=quote_id,
             session_id=session_id,
             from_currency=from_cur,
             to_currency=to_cur,
-            amount_in=amount_dec,
-            rate=rate_val,
-            amount_out=float(amount_out),
+            amount_in=str(amount_dec),
+            rate=str(rate_dec),
+            amount_out=str(amount_out),
         )
 
+        
         from redis_repo.quotes import save_quote
         await save_quote(self.redis, quote_id, quote)
 
         return {
             "quote_id": quote_id,
-            "amount_out": float(amount_out),
-            "expires_in": quote["expires_at"] - quote["created_at"],
+            "amount_out": str(amount_out),
+            # "expires_in": quote["expires_at"] - quote["created_at"],
         }

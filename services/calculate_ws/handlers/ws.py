@@ -1,5 +1,7 @@
 import json
 from aiohttp import web, WSMsgType
+
+from utils.ids import generate_session_id
 from services.quote_engine import QuoteEngine
 
 

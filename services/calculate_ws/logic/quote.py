@@ -3,7 +3,7 @@ import time
 
 COMMISSION = 0.005
 
-
+# нигде не используется, но надо добавить логику по хорошему
 def calc_quote(amount: float, rate: float) -> float:
     return round(amount * rate * (1 - COMMISSION), 2)
 
