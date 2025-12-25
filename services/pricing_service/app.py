@@ -4,18 +4,25 @@ import asyncio
 from aiohttp import web
 import redis.asyncio as redis
 
-from fetch import fetch_loop
+from providers.binance_ws import listen_binance_ws
 from settings import REDIS_HOST, REDIS_PORT
 
 
-async def start_fetch_loop(app: web.Application):
-    app["fetch_task"] = asyncio.create_task(
-        fetch_loop(app["redis"])
+async def start_binance_ws(app):
+    redis_client = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        decode_responses=True,
+    )
+
+    app["redis"] = redis_client
+    app["binance_task"] = asyncio.create_task(
+        listen_binance_ws(redis_client)
     )
 
 
-async def stop_fetch_loop(app: web.Application):
-    task = app.get("fetch_task")
+async def stop_binance_ws(app):
+    task = app.get("binance_task")
     if task:
         task.cancel()
         try:
@@ -26,17 +33,8 @@ async def stop_fetch_loop(app: web.Application):
 
 async def init_app():
     app = web.Application()
-
-    redis_client = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        decode_responses=True,
-    )
-    app["redis"] = redis_client
-
-    app.on_startup.append(start_fetch_loop)
-    app.on_cleanup.append(stop_fetch_loop)
-
+    app.on_startup.append(start_binance_ws)
+    app.on_cleanup.append(stop_binance_ws)
     return app
 
 

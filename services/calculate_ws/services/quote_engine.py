@@ -2,7 +2,6 @@ from decimal import Decimal
 from redis_repo.rates import get_rate
 from utils.ids import generate_quote_id
 from logic.quote import build_quote
-from utils.time import utc_now_iso
 
 
 class QuoteEngine:

@@ -1,11 +1,14 @@
-# pricing_service/utils/normalizer.py
+# services/pricing_service/utils/normalizer.py
 
-STABLES = {"USDT"}
+from settings import STABLE_QUOTE
 
 def normalize_symbol(symbol: str):
-    for stable in STABLES:
-        if symbol.endswith(stable):
-            base = symbol[:-len(stable)]
-            quote = stable
-            return base, quote
+    """
+    Если символ заканчивается на STABLE_QUOTE (например BTCUSDT),
+    возвращает tuple (base, quote). Иначе None.
+    """
+    if symbol.endswith(STABLE_QUOTE):
+        base = symbol[:-len(STABLE_QUOTE)]
+        quote = STABLE_QUOTE
+        return base, quote
     return None
