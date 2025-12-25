@@ -18,7 +18,8 @@ FIAT_QUOTES = ["EUR", "GBP", "THB"]
 CRYPTO_SYMBOLS = [
     "BTCUSDT",
     "ETHUSDT",
-    "USDTTHB",
+    "THBUSDT",
+    "TRXUSDT"
 ]
 
 REDIS_RATE_TTL = 120
