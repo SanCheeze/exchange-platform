@@ -14,28 +14,24 @@ from utils.time import utc_now_iso
 # =====================
 # ADD USER
 # =====================
-async def add_user(request: web.Request):
-    data = await request.json()
-
-    telegram_id = data.get("telegram_id")
-    if not telegram_id:
-        return web.json_response(
-            {"error": "TELEGRAM_ID_REQUIRED"},
-            status=400,
-        )
-
+async def add_user(
+    telegram_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+):
     existing = await get_user_by_telegram_id(telegram_id)
     if existing:
-        return web.json_response(dict(existing), status=200)
+        return dict(existing)
 
     ts = utc_now_iso()
 
     user = {
         "id": uuid.uuid4(),
         "telegram_id": telegram_id,
-        "username": data.get("username"),
-        "first_name": data.get("first_name"),
-        "last_name": data.get("last_name"),
+        "username": username,
+        "first_name": first_name,
+        "last_name": last_name,
         "commission": 0.0100,
         "total_volume": 0,
         "payment_info": None,
@@ -44,8 +40,7 @@ async def add_user(request: web.Request):
     }
 
     await insert_user(user)
-
-    return web.json_response(user, status=201)
+    return user
 
 
 # =====================

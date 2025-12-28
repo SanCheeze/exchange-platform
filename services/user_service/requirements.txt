@@ -1,0 +1,4 @@
+aiohttp
+asyncpg
+aiogram
+python-dotenv
