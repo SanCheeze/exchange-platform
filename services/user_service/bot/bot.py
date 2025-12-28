@@ -1,3 +1,5 @@
+# user_service/bot/bot.py
+
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 

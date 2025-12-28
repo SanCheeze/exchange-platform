@@ -1,3 +1,5 @@
+# user_service/logic/users.py
+
 import uuid
 from aiohttp import web
 

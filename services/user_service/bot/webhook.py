@@ -1,3 +1,5 @@
+# user_service/bot/webhook.py
+
 from aiohttp import web
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler
 

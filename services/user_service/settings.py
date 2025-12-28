@@ -1,3 +1,5 @@
+# user_service/settings.py
+
 import os
 
 

@@ -1,3 +1,5 @@
+# user_service/schema.sql
+
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
 

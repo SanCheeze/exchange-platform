@@ -1,3 +1,6 @@
+# user_service/app.py
+
+
 from aiohttp import web
 
 from settings import DATABASE_URI
