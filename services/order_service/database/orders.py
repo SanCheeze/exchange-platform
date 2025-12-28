@@ -1,11 +1,12 @@
+# order_service/database/orders.py
+
 import uuid
 import json
 from datetime import datetime
 
-from .pg import get_pool
-from datetime import datetime
+from database.pg import get_pool
+from database.events import send_to_outbox
 from domain.order_status import OrderStatus
-
 
 
 async def insert_order(order: dict):
@@ -37,22 +38,31 @@ async def insert_order(order: dict):
         )
     """
 
-    await pool.execute(
-        query,
-        order["id"],           # UUID
-        order["order_id"],     # str
-        order["status"],       # str
-        order["quote_id"],     # str
-        order["pair"],         # str
-        order["amount_in"],    # float
-        order["amount_out"],   # float
-        order["rate"],         # float
-        order["commission"],   # float
-        order["client_id"],    # str | None
-        order["session_id"],   # str
-        order["created_at"],   # datetime
-        order["updated_at"],   # datetime
-    )
+    async with pool.acquire() as conn:
+        await pool.execute(
+            query,
+            order["id"],           # UUID
+            order["order_id"],     # str
+            order["status"],       # str
+            order["quote_id"],     # str
+            order["pair"],         # str
+            order["amount_in"],    # float
+            order["amount_out"],   # float
+            order["rate"],         # float
+            order["commission"],   # float
+            order["client_id"],    # str | None
+            order["session_id"],   # str
+            order["created_at"],   # datetime
+            order["updated_at"],   # datetime
+        )
+
+        await send_to_outbox(
+            conn=conn,
+            aggregate_type="order",
+            aggregate_id=order_id,
+            event_type="order.inserted",
+            event_payload=order
+        )
 
 
 async def get_order(order_id: str):
@@ -77,8 +87,7 @@ async def update_order_status(order_id: str, status: str, updated_at: datetime):
             updated_at = $2
         WHERE order_id = $3
     """
-
-    await pool.execute(
+    await conn.execute(
         query,
         status,
         updated_at,
@@ -86,9 +95,8 @@ async def update_order_status(order_id: str, status: str, updated_at: datetime):
     )
 
 
-async def confirm_order_with_outbox(order_id: str, event_payload: dict):
+async def confirm_order(order_id: str, event_payload: dict):
     pool = get_pool()
-    ts = datetime.utcnow()
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -112,24 +120,10 @@ async def confirm_order_with_outbox(order_id: str, event_payload: dict):
             if result == "UPDATE 0":
                 return False
 
-            # 2️⃣ Пишем событие в outbox
-            await conn.execute(
-                """
-                INSERT INTO outbox_events (
-                    id,
-                    aggregate_type,
-                    aggregate_id,
-                    event_type,
-                    payload,
-                    created_at
-                ) VALUES ($1,$2,$3,$4,$5,$6)
-                """,
-                uuid.uuid4(),
-                "order",
-                order_id,
-                "order.confirmed",
-                json.dumps(event_payload),
-                ts,
+            await send_to_outbox(
+                conn=conn,
+                aggregate_type="order",
+                aggregate_id=order_id,
+                event_type="order.confirmed",
+                event_payload=event_payload
             )
-
-    return True

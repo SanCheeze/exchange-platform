@@ -2,6 +2,7 @@
 
 import uuid
 from database.pg import get_pool
+from database.events import send_to_outbox
 
 
 async def insert_user(user: dict):
@@ -37,6 +38,15 @@ async def insert_user(user: dict):
             user["updated_at"],
         )
 
+        await send_to_outbox(
+                conn=conn,
+                aggregate_type="user",
+                aggregate_id=user["telegram_id"],
+                event_type="user.add_user",
+                event_payload=user
+            )
+
+
 
 async def get_user_by_telegram_id(telegram_id: int):
     pool = get_pool()
@@ -70,3 +80,11 @@ async def update_user(telegram_id: int, fields: dict):
 
     async with pool.acquire() as conn:
         await conn.execute(query, *values, telegram_id)
+
+        await send_to_outbox(
+                conn=conn,
+                aggregate_type="user",
+                aggregate_id=user["telegram_id"],
+                event_type="user.update_user",
+                event_payload=fields
+            )

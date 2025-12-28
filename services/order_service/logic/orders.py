@@ -8,7 +8,8 @@ from decimal import Decimal, ROUND_DOWN
 from datetime import datetime, timezone
 
 from database.pg import init_pg
-from database.orders import insert_order, confirm_order_with_outbox
+from database.orders import insert_order
+from database.events import confirm_order_with_outbox
 from domain.order_status import OrderStatus
 
 from redis_repo.orders import cache_order, get_cached_order
