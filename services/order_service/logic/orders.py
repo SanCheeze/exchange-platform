@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 
 from database.pg import init_pg
 from database.orders import insert_order
-from database.events import confirm_order_with_outbox
 from domain.order_status import OrderStatus
 
 from redis_repo.orders import cache_order, get_cached_order
@@ -198,12 +197,6 @@ async def confirm_order(request: web.Request):
         "rate": str(order["rate"]),
         "confirmed_at": ts.isoformat(),
     }
-
-    # 4️⃣ Транзакция БД + outbox
-    success = await confirm_order_with_outbox(order_id, event_payload)
-
-    if not success:
-        return web.json_response(order, status=200)
 
     # 5️⃣ Обновляем Redis
     order["status"] = OrderStatus.CONFIRMED
